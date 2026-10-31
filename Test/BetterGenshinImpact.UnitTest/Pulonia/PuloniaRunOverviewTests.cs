@@ -227,6 +227,7 @@ public sealed class PuloniaRunOverviewTests : IDisposable
         // 4. 主实例下发、连接正常：可停止
         var dispatchedItem = vm.Runs.Single(item => item.RunId == dispatched.RunId);
         Assert.Equal((PuloniaRunStopAccess.Dispatched, true), (dispatchedItem.StopAccess, dispatchedItem.CanCancel));
+        Assert.Equal("运行中", dispatchedItem.StatusText);
         // 5. 已结束的运行：不可停止
         var finishedItem = vm.Runs.Single(item => item.RunId == finished.RunId);
         Assert.True(finishedItem.IsHistorical);
@@ -246,6 +247,8 @@ public sealed class PuloniaRunOverviewTests : IDisposable
         dispatchedItem = vm.Runs.Single(item => item.RunId == dispatched.RunId);
         Assert.Equal((PuloniaRunStopAccess.Disconnected, false), (dispatchedItem.StopAccess, dispatchedItem.CanCancel));
         Assert.Contains("连接已断开", dispatchedItem.StopToolTip);
+        // 断开期间最后收到的状态可能已过时，显示“连接断开，状态未知”并按需关注着色
+        Assert.Equal(("连接断开，状态未知", "attention"), (dispatchedItem.StatusText, dispatchedItem.StatusKind));
         Assert.True(vm.Runs.Single(item => item.RunId == local.RunId).CanCancel);
     }
 

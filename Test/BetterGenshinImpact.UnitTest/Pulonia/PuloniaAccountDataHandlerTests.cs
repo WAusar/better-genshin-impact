@@ -1,5 +1,6 @@
 using BetterGenshinImpact.Pulonia.Models;
 using BetterGenshinImpact.Pulonia.Services;
+using Newtonsoft.Json.Linq;
 
 namespace BetterGenshinImpact.UnitTest.Pulonia;
 
@@ -91,6 +92,57 @@ public sealed class PuloniaAccountDataHandlerTests : IDisposable
         Assert.Contains("文件被占用", result.DataWarning);
     }
 
+    /// <summary>
+    /// 删除前列出实际会删除的数据（统筹设计 4.1）：凭据、不再被引用的图片（含被替换的旧图片）、完成记录、
+    /// 有次数的首领领奖条目与关联模块报告的数据；没有数据的项不列出，不在目录中的账户没有任何影响。
+    /// </summary>
+    [Fact] public async Task RemovalImpactListsActualData()
+    {
+        using var store = new PuloniaTaskStore(_directory) { CredentialVault = new MemoryCredentialVault() };
+        var handler = new RecordingHandler();
+        var accounts = new PuloniaAccountService(store, new PuloniaInstanceKeyProvider(PuloniaInstanceKey.Primary), [handler]);
+        var settings = await accounts.LoadAccountsAsync();
+        var my = settings.Accounts[0];
+        var target = new PuloniaGenshinAccountProfile { Name = "乙", Uid = "100000002" };
+        await store.CreateAccountImageAsync(target.Id, [1, 2, 3]);
+        target.ImagePath = await store.CreateAccountImageAsync(target.Id, [4, 5, 6]);
+        settings.Accounts.Add(target);
+        await accounts.SaveAccountsAsync(settings, new Dictionary<string, (string, string)> { [target.Id] = ("user", "secret") });
+
+        // 1. 刚建立的账户：只有凭据和两张图片
+        var fresh = await accounts.DescribeAccountRemovalAsync(target.Id);
+        Assert.Equal((0, 0, true, 2), (fresh.RouteCompletionCount, fresh.BossRewardEntryCount, fresh.HasCredential, fresh.ImageCount));
+        Assert.Equal(["保存的登录凭据（账号密码）", "账户图片 2 张"], fresh.Describe());
+
+        // 2. 写入两条完成记录、两个节点的首领领奖次数，关联模块报告该 UID 有数据
+        Assert.True(await accounts.RecordRouteCompletionAsync(target.Id, Completion("A")));
+        Assert.True(await accounts.RecordRouteCompletionAsync(target.Id, Completion("B")));
+        await accounts.IncrementBossRewardCountAsync(target.Id, "plan", "task-1", "");
+        await accounts.IncrementBossRewardCountAsync(target.Id, "plan", "task-1", "");
+        await accounts.IncrementBossRewardCountAsync(target.Id, "plan", "task-2", "");
+        handler.DataUids.Add("100000002");
+        var impact = await accounts.DescribeAccountRemovalAsync(target.Id);
+        Assert.Equal((2, 2), (impact.RouteCompletionCount, impact.BossRewardEntryCount));
+        Assert.Equal(["保存的登录凭据（账号密码）", "账户图片 2 张", "路线 CD 完成记录 2 条", "首领领奖次数 2 项", "测试数据"],
+            impact.Describe());
+
+        // 3. 没有任何数据的“我的账户”与不在目录中的账户：列表为空
+        Assert.Empty((await accounts.DescribeAccountRemovalAsync(my.Id)).Describe());
+        Assert.Empty((await accounts.DescribeAccountRemovalAsync("acc_missing")).Describe());
+    }
+
+    /// <summary>建立一条路线的完成记录，路线文件不需要存在。</summary>
+    /// <param name="routeName">路线文件名（不含扩展名）</param>
+    private PuloniaRouteCompletion Completion(string routeName)
+    {
+        var rule = PuloniaRouteCooldown.Resolve(Path.Combine(_directory, "落落莓", routeName + ".json"), null, new JObject());
+        return new PuloniaRouteCompletion
+        {
+            Route = rule.FileIdentity, CompletedAt = DateTimeOffset.UtcNow, RunId = PuloniaId.NewRunId(DateTimeOffset.Now),
+            TaskAddress = "plan/" + routeName, Attempt = 1, Instance = PuloniaInstanceKey.Primary, Rule = PuloniaRouteCompletionRule.From(rule)
+        };
+    }
+
     /// <summary>在账户目录末尾加入一个有 UID 的账户并保存，返回保存后的目录。</summary>
     private static async Task<PuloniaGenshinAccountSettings> AddAccountAsync(IPuloniaAccountService accounts, string name, string uid)
     {
@@ -159,5 +211,18 @@ public sealed class PuloniaAccountDataHandlerTests : IDisposable
 
         /// <inheritdoc />
         public Task<bool> HasDataAsync(string uid, CancellationToken ct = default) => Task.FromResult(DataUids.Contains(uid));
+    }
+
+    /// <summary>内存凭据库，测试不接触用户真实的 Windows 凭据。</summary>
+    private sealed class MemoryCredentialVault : IPuloniaCredentialVault
+    {
+        /// <summary>当前保存的凭据，键为目标名。</summary>
+        private readonly Dictionary<string, (string UserName, string Password)> _items = new(StringComparer.Ordinal);
+
+        /// <inheritdoc />
+        public void Write(string target, string userName, string password) => _items[target] = (userName, password);
+
+        /// <inheritdoc />
+        public void Delete(string target) => _items.Remove(target);
     }
 }
