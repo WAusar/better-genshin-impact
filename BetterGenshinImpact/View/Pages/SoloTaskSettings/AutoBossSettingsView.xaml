@@ -53,7 +53,7 @@
             <ui:CardExpander.Header>
                 <StackPanel Margin="0,0,16,0">
                     <ui:TextBlock FontTypography="Body" Text="累计成功领奖次数" TextWrapping="Wrap"/>
-                    <TextBlock Style="{StaticResource SoloDescription}" Text="跨次运行累计，每个任务、账号分别统计；0 表示不限制。"/>
+                    <TextBlock Style="{StaticResource SoloDescription}" Text="跨次运行累计，每个任务、账户分别统计；0 表示不限制。"/>
                 </StackPanel>
             </ui:CardExpander.Header>
             <StackPanel>

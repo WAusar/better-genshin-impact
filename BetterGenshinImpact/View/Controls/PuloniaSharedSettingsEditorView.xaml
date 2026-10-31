@@ -89,12 +89,12 @@
                                                      Strategy="{Binding StrategyValue, Mode=TwoWay}"
                                                      Visibility="{Binding IsCombatStrategy, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}" />
                         <StackPanel Orientation="Horizontal"
-                                    Visibility="{Binding IsCollectionCooldown, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                    Visibility="{Binding IsRouteCooldown, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <ui:TextBlock Margin="0,0,8,0"
                                           VerticalAlignment="Center"
                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                           Text="{Binding ValueText, Mode=OneWay}" />
-                            <ui:Button Command="{Binding EditCollectionCooldownCommand, Mode=OneWay}" Content="配置…" />
+                            <ui:Button Command="{Binding EditRouteCooldownCommand, Mode=OneWay}" Content="配置…" />
                         </StackPanel>
                         <ui:TextBlock Margin="6,0,0,0"
                                       VerticalAlignment="Center"

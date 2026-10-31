@@ -8,6 +8,7 @@
 
 - [Pulonia 任务系统架构总览](pulonia/README.md)（路线图与验收状态见 [pulonia/roadmap.md](pulonia/roadmap.md)；旧入口 [automation-system.md](automation-system.md) 保留为跳转页）
 - [三种实例的能力边界与 IPC 规划](instance-capability-boundaries.md)（现状核对与后续规划）
+- [实例、账户、配置与路线 CD 统筹设计](instance-account-model.md)（第 3 版，方向已确认；第 13 节的 7 个步骤已于 2026-11-01 实施，待用户验收；账户归入 Pulonia，用户设置实例当前账户，切换时严格核验 UID、跟随当前账户时只比对提示；账本改为按账户存放的完成记录；各实例自己协调运行，主实例一步下发；触发器按执行实例触发）
 - [BetterGI 多实例命名管道协议](multi-instance-ipc.md)
 - [BetterGI 输入层 InputHub 设计](input-hub.md)
 - [遮罩窗口（MaskWindow）统一设计](mask-window.md)
