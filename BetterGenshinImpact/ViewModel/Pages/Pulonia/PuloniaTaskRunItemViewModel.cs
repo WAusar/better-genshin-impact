@@ -55,21 +55,29 @@ public sealed class PuloniaTaskRunItemViewModel : ObservableObject
     public string PlanName => Run.PlanName;
 
     /// <summary>
-    /// 当前状态的中文显示文本。
+    /// 当前状态的中文显示文本；主实例下发的运行在连接断开期间显示“连接断开，状态未知”（统筹设计 6.3）。
     /// </summary>
-    public string StatusText => PuloniaTaskHistoryText.Status(Run.Status);
+    public string StatusText => IsDisconnected ? "连接断开，状态未知" : PuloniaTaskHistoryText.Status(Run.Status);
 
     /// <summary>
     /// 状态的语义分类键，供列表与详情按类别着色：running=进行中、success=成功、failed=失败、attention=需关注，其余显示为中性灰。
-    /// 归类规则由 <see cref="PuloniaTaskRunClassifier.Categorize"/> 决定，这里只转换为视图触发器使用的键。
+    /// 归类规则由 <see cref="PuloniaTaskRunClassifier.Categorize"/> 决定，这里只转换为视图触发器使用的键；连接断开时状态未知，显示为需关注。
     /// </summary>
-    public string StatusKind => PuloniaTaskHistoryText.CategoryKey(PuloniaTaskRunClassifier.Categorize(Run.Status));
+    public string StatusKind => IsDisconnected
+        ? PuloniaTaskHistoryText.CategoryKey(PuloniaTaskRunStatusCategory.Attention)
+        : PuloniaTaskHistoryText.CategoryKey(PuloniaTaskRunClassifier.Categorize(Run.Status));
 
     /// <summary>
-    /// 状态图标；排队显示时钟，已停止或已过期显示减号圆圈。
+    /// 状态图标；排队显示时钟，已停止或已过期显示减号圆圈，连接断开时按需关注显示。
     /// </summary>
-    public SymbolRegular StatusIcon => PuloniaTaskHistoryText.CategoryIcon(PuloniaTaskRunClassifier.Categorize(Run.Status),
+    public SymbolRegular StatusIcon => PuloniaTaskHistoryText.CategoryIcon(
+        IsDisconnected ? PuloniaTaskRunStatusCategory.Attention : PuloniaTaskRunClassifier.Categorize(Run.Status),
         Run.Status == PuloniaTaskRunStatus.Queued ? SymbolRegular.Clock24 : SymbolRegular.SubtractCircle24);
+
+    /// <summary>
+    /// 主实例下发、尚未结束的运行与执行实例的连接已断开，最后收到的状态可能已经过时。
+    /// </summary>
+    public bool IsDisconnected => IsActive && StopAccess == PuloniaRunStopAccess.Disconnected;
 
     /// <summary>
     /// 列表中的短时间：已开始的运行取开始时间，排队中取提交时间。
@@ -158,8 +166,8 @@ public sealed class PuloniaTaskRunItemViewModel : ObservableObject
     public bool NeedsVerification => PuloniaTaskRunClassifier.HasUncertainAttempt(NodeResults);
 
     /// <summary>
-    /// 列表中的账户说明：显示运行账户名称，UID 比对不一致时附上游戏中读到的 UID；
-    /// 未确定运行账户，或目录只有一个账户且按本实例当前账户正常运行时为空，不打扰只有一个账号的用户。
+    /// 列表中的账户说明：显示运行账户名称，UID 比对不一致时附上游戏中读到的 UID 尾号；
+    /// 未确定运行账户，或目录只有一个账户且按本实例当前账户正常运行时为空，不打扰只有一个账户的用户。
     /// </summary>
     public string? AccountText
     {
@@ -168,7 +176,7 @@ public sealed class PuloniaTaskRunItemViewModel : ObservableObject
             if (Run.AccountId is not { } accountId)
                 return null;
             if (Run.UidCheck == PuloniaTaskUidCheck.Mismatched)
-                return $"{GetAccountName(accountId)} · 游戏中读到 UID {Run.ObservedUid}";
+                return $"{GetAccountName(accountId)} · {ObservedUidText}";
             if (Run.AccountSource == PuloniaTaskAccountSource.InstanceCurrent && _accountNames is not { Count: > 1 })
                 return null;
             return GetAccountName(accountId);
@@ -315,7 +323,7 @@ public sealed class PuloniaTaskRunItemViewModel : ObservableObject
 
     /// <summary>
     /// 运行账户说明：名称 · 来源（本实例当前账户或计划指定）· UID 核验或比对结果，
-    /// 例如“乙 · 本实例当前账户 · UID 一致”“丙 · 计划指定 · 已核验 UID 100000001”。
+    /// 例如“乙 · 本实例当前账户 · UID 一致”“丙 · 计划指定 · 已核验 UID”“甲 · 本实例当前账户 · 游戏中读到尾号 2222”（统筹设计 9.6）。
     /// </summary>
     private string DescribeAccount()
     {
@@ -326,20 +334,27 @@ public sealed class PuloniaTaskRunItemViewModel : ObservableObject
         {
             case PuloniaTaskAccountSource.Specified:
                 parts.Add("计划指定");
-                parts.Add(Run.VerifiedUid is { } verified ? "已核验 UID " + verified : "UID 未核验");
+                parts.Add(Run.VerifiedUid is not null ? "已核验 UID" : "UID 未核验");
                 break;
             case PuloniaTaskAccountSource.InstanceCurrent:
                 parts.Add("本实例当前账户");
                 parts.Add(Run.UidCheck switch
                 {
                     PuloniaTaskUidCheck.Matched => "UID 一致",
-                    PuloniaTaskUidCheck.Mismatched => "游戏中读到 UID " + Run.ObservedUid,
+                    PuloniaTaskUidCheck.Mismatched => ObservedUidText,
                     _ => "未比对 UID"
                 });
                 break;
         }
         return string.Join(" · ", parts);
     }
+
+    /// <summary>
+    /// UID 比对不一致时游戏中读到的 UID，只显示尾号，如“游戏中读到尾号 2222”；没有记录读到的 UID 时说明不一致。
+    /// </summary>
+    private string ObservedUidText => Run.ObservedUid is { Length: > 0 } observed
+        ? "游戏中读到尾号 " + PuloniaAccountChoiceViewModel.UidTail(observed)
+        : "游戏中读到的 UID 不一致";
 
     /// <summary>
     /// 运行账户的显示名称：优先使用账户目录中的当前名称，其次是快照固定的账户资料，最后显示账户 ID。

@@ -39,4 +39,11 @@ public interface IPuloniaAccountDataHandler
     /// <param name="uid">被删除账户的完整 UID</param>
     /// <param name="ct">取消令牌</param>
     Task OnAccountRemovedAsync(string uid, CancellationToken ct = default);
+
+    /// <summary>
+    /// 该 UID 是否有数据；删除账户前据此列出会一并删除的数据。
+    /// </summary>
+    /// <param name="uid">完整 UID</param>
+    /// <param name="ct">取消令牌</param>
+    Task<bool> HasDataAsync(string uid, CancellationToken ct = default);
 }

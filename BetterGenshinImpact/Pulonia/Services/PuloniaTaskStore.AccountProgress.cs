@@ -152,6 +152,15 @@ public sealed partial class PuloniaTaskStore
     }
 
     /// <summary>
+    /// 一个账户记录了首领领奖次数（大于 0）的（计划、节点、重置批次）条目数；文件不存在时为 0。供删除账户前说明会删除的数据。
+    /// </summary>
+    /// <param name="accountId">账户 ID</param>
+    /// <param name="ct">取消令牌</param>
+    public async Task<int> CountBossRewardEntriesAsync(string accountId, CancellationToken ct = default)
+        => (await ReadBossRewardFileAsync(GetBossRewardsPath(RootDirectory, accountId), ct).ConfigureAwait(false))
+            .Rewards.Count(entry => entry.Count > 0);
+
+    /// <summary>
     /// 每次确认领奖成功后立即把运行账户的累计次数加 1 并落盘；在写锁内读改写，失败时阻止任务继续消耗树脂。
     /// </summary>
     /// <param name="accountId">运行账户 ID</param>

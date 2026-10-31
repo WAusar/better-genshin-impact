@@ -808,7 +808,7 @@ Pulonia 分组为：任务计划、新一条龙、执行记录、账户（新增
 
 ## 15. 实施记录
 
-2026-11-01 在 `refactor/20260930` 分支实施，尚未提交。主要代码位置（相对 `BetterGenshinImpact/`）：
+2026-10 在 `refactor/20260930` 分支实施，第 1—7 步见提交 `6f5d725b1`，之后按本文逐项核对补齐遗漏。主要代码位置（相对 `BetterGenshinImpact/`）：
 
 | 步骤 | 实现要点 |
 | --- | --- |
@@ -819,6 +819,13 @@ Pulonia 分组为：任务计划、新一条龙、执行记录、账户（新增
 | 5 一步下发 | `Pulonia/Remote/PuloniaRunDispatcher.cs`（主实例）、`PuloniaRunDispatchHost.cs`（子实例）、`Service/Instance/MessageHandlers/PuloniaRunMessageHandler.cs`；取消只发出不等待（`IPuloniaTaskService.RequestCancelAsync`）；“运行于”组件 `ViewModel/Pages/Pulonia/PuloniaRunTargetsViewModel.cs`；执行记录跨实例合并 `Pulonia/Services/PuloniaRunOverview.cs` |
 | 6 占用与检查 | `PuloniaTaskStore.Locks.cs`（`run.lock`、`online.lock`）、`PuloniaInstancePresence.cs`；切换前检查与请求字段 `allow_displace_online_instance`（只对来源 `ui` 有效）；提交前检查 `ViewModel/Pages/Pulonia/PuloniaRunTargetCheck.cs` |
 | 7 触发器执行实例 | 触发器字段 `instances` 与 `PuloniaTaskTrigger.IsScheduledOn`；`PuloniaTaskService.Scheduling.cs` 只处理本实例负责的定时；`PuloniaTaskTriggerHost` 在所有实例运行调度循环，只在主实例注册计划热键；触发设置的执行实例选项 `PuloniaTriggerInstanceCatalog.cs` |
+
+核对后补齐的内容：
+
+- 4.3 云原神实例运行指定账户的计划：不按键，只读取 UID；与运行账户一致时照常运行，不一致时进入待处理（`PuloniaGenshinAccountSwitcher.PrepareAsync`）。
+- 4.4 UID 不一致的提示：主窗口内容区顶部显示提示卡片，关闭前一直显示；目录中有读到的 UID 对应的账户时带“把当前账户改为乙”按钮（`MainWindowViewModel.Accounts.cs`、`View/MainWindow.xaml`）。
+- 9.3 账户页概况：显示最近一次运行和指定了该账户的计划，点击计划跳转到任务计划页或新一条龙页（`PuloniaAccountsPageViewModel.Overview.cs`、`PuloniaPlanEditingSession.RequestOpenPlan`）。删除账户前列出实际会删除的完成记录、首领领奖记录、凭据、账户图片和狛荷屋记录（`IPuloniaAccountService.DescribeAccountRemovalAsync`）。
+- 9.6 执行记录：主实例下发的运行在连接断开期间显示“连接断开，状态未知”；UID 不一致只显示读到的 UID 尾号。
 
 与设计的差异：
 

@@ -90,10 +90,12 @@ public partial class PuloniaAccountsPageViewModel : ViewModel
     /// <param name="switcher">账户切换、UID 读取与图片采集</param>
     /// <param name="session">编辑会话：路线 CD 与首领领奖页签读取计划与账户进度</param>
     /// <param name="accountRecordsPage">狛荷屋页视图模型，“打开狛荷屋”在导航前记下要选中的 UID；测试直接构造时为空</param>
-    /// <param name="navigation">页面导航，用于跳转到狛荷屋页；测试直接构造时为空</param>
+    /// <param name="navigation">页面导航，用于跳转到狛荷屋页、任务计划页与新一条龙页；测试直接构造时为空</param>
+    /// <param name="runOverview">跨实例运行视图，概况页读取账户最近一次运行；为空时不显示</param>
     public PuloniaAccountsPageViewModel(IPuloniaAccountService accounts, PuloniaTaskStore store,
         PuloniaGameTaskCoordinator coordinator, IPuloniaGenshinAccountSwitcher switcher, PuloniaPlanEditingSession session,
-        AccountRecordsPageViewModel? accountRecordsPage = null, INavigationService? navigation = null)
+        AccountRecordsPageViewModel? accountRecordsPage = null, INavigationService? navigation = null,
+        PuloniaRunOverview? runOverview = null)
     {
         _accounts = accounts;
         _store = store;
@@ -101,6 +103,8 @@ public partial class PuloniaAccountsPageViewModel : ViewModel
         _switcher = switcher;
         _accountRecordsPage = accountRecordsPage;
         _navigation = navigation;
+        _session = session;
+        _runOverview = runOverview;
         _dispatcher = Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher;
         // 路线 CD 页签固定为所选账户；选中账户之前列表为空
         RouteCooldowns = new PuloniaRouteCooldownOverviewViewModel(session);
@@ -183,6 +187,8 @@ public partial class PuloniaAccountsPageViewModel : ViewModel
         await LoadAsync(force: false);
         // 其他页面的“查看路线 CD”在导航前记下的请求：账户列表就绪后选中账户并切到“路线 CD”
         ApplyRouteCooldownRequest();
+        // 概况的最近一次运行与指定的计划可能已在其他页面或实例中变化
+        await RefreshOverviewAsync();
     }
 
     /// <summary>离开页面：停止响应账户变化；草稿保留到下次进入。</summary>
@@ -459,7 +465,21 @@ public partial class PuloniaAccountsPageViewModel : ViewModel
             var othersDirty = Accounts.Where(item => !ReferenceEquals(item, account)).Any(item => item.IsDirty)
                               || !Accounts.Where(item => !ReferenceEquals(item, account)).Select(item => item.Id)
                                   .SequenceEqual(_savedOrder.Where(id => id != account.Id));
-            var confirm = $"删除账户“{account.Name}”？\n\n将一并删除它保存的登录凭据和账户图片，以及该账户的路线 CD 完成记录、首领领奖次数和狛荷屋记录，删除后不能撤销。"
+            // 列出这个账户实际会被删除的数据（统筹设计 4.1）；读取失败时退回类别说明
+            string dataText;
+            try
+            {
+                var items = (await _accounts.DescribeAccountRemovalAsync(account.Id)).Describe();
+                dataText = items.Count == 0
+                    ? "这个账户没有保存登录凭据、账户图片、路线 CD 完成记录、首领领奖次数或狛荷屋记录。"
+                    : "将一并删除：\n" + string.Join("\n", items.Select(item => "• " + item));
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                dataText = "将一并删除它保存的登录凭据和账户图片，以及该账户的路线 CD 完成记录、首领领奖次数和狛荷屋记录"
+                           + $"（未能读取具体数据：{ex.Message}）。";
+            }
+            var confirm = $"删除账户“{account.Name}”？\n\n{dataText}\n\n删除后不能撤销。"
                           + (othersDirty ? "\n本页其他未保存的修改会一并保存。" : "");
             if (await ThemedMessageBox.ShowAsync(confirm, "删除账户", MessageBoxButton.YesNo, ThemedMessageBox.MessageBoxIcon.Warning,
                     MessageBoxResult.No) != MessageBoxResult.Yes)
@@ -546,6 +566,8 @@ public partial class PuloniaAccountsPageViewModel : ViewModel
             var warnings = new[] { result.CredentialError, result.DataWarning }.OfType<string>().ToArray();
             _lastSaveWarning = warnings.Length > 0 ? string.Join("；", warnings) : null;
             Message = _lastSaveWarning is { } warning ? "账户目录已保存，但" + warning : "账户目录已保存。";
+            // 新增的账户保存后才有最近一次运行与指定的计划
+            _ = RefreshOverviewAsync();
             return true;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -628,11 +650,12 @@ public partial class PuloniaAccountsPageViewModel : ViewModel
         NotifyCommands();
     }
 
-    /// <summary>选中账户变化后更新命令，路线 CD 与首领领奖页签随之改为该账户。</summary>
+    /// <summary>选中账户变化后更新命令，路线 CD 与首领领奖页签随之改为该账户，概况重新读取最近一次运行与指定的计划。</summary>
     partial void OnSelectedAccountChanged(PuloniaAccountItemViewModel? value)
     {
         NotifyCommands();
         SyncProgressAccount(value);
+        _ = RefreshOverviewAsync();
     }
 
     /// <summary>忙碌状态变化后更新命令。</summary>

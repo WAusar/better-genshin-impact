@@ -335,6 +335,60 @@
                             </Border>
                         </Grid>
                     </Border>
+                    <!--
+                        UID 不一致提示（统筹设计 4.4）：跟随当前账户的运行开始时游戏中读到的 UID 与本实例当前账户不一致。
+                        目录中有读到的 UID 对应的账户时提供“改为该账户”，修改从下一次运行开始生效；关闭或修改当前账户后消失。
+                    -->
+                    <Border MaxWidth="420"
+                            Margin="0,8,12,0"
+                            Padding="14,12"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Top"
+                            Background="{DynamicResource SolidBackgroundFillColorBaseBrush}"
+                            BorderBrush="{DynamicResource SystemFillColorCautionBrush}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Visibility="{Binding IsUidMismatchNoticeOpen, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}">
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="16" Opacity="0.2" ShadowDepth="2" Color="Black" />
+                        </Border.Effect>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock FontSize="13"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                           Text="游戏中的 UID 与当前账户不一致" />
+                                <TextBlock Margin="0,4,0,0"
+                                           FontSize="12"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                           Text="{Binding UidMismatchNoticeText, Mode=OneWay}"
+                                           TextWrapping="Wrap" />
+                                <ui:Button Margin="0,8,0,0"
+                                           Appearance="Caution"
+                                           Command="{Binding ApplyAccountSuggestionCommand, Mode=OneWay}"
+                                           Content="{Binding AccountSuggestionButtonText, Mode=OneWay}"
+                                           Icon="{ui:SymbolIcon PersonSwap24}"
+                                           ToolTip="把本实例当前账户改为游戏中读到的 UID 对应的账户，下一次运行开始时生效"
+                                           Visibility="{Binding HasAccountSuggestion, Mode=OneWay, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            </StackPanel>
+                            <ui:Button Grid.Column="1"
+                                       Width="28"
+                                       Height="28"
+                                       Margin="8,0,0,0"
+                                       Padding="0"
+                                       VerticalAlignment="Top"
+                                       Background="Transparent"
+                                       BorderBrush="Transparent"
+                                       Command="{Binding DismissUidMismatchNoticeCommand, Mode=OneWay}"
+                                       Icon="{ui:SymbolIcon Dismiss16}"
+                                       ToolTip="关闭"
+                                       AutomationProperties.Name="关闭 UID 不一致提示" />
+                        </Grid>
+                    </Border>
                     <ui:SnackbarPresenter x:Name="SnackbarPresenter" />
                 </Grid>
             </ui:NavigationView.ContentOverlay>

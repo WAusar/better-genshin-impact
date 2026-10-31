@@ -153,5 +153,11 @@ public sealed class PuloniaAccountDataHandlerTests : IDisposable
             Removed.Add(uid);
             return Task.CompletedTask;
         }
+
+        /// <summary>报告有数据的 UID。</summary>
+        public HashSet<string> DataUids { get; } = [];
+
+        /// <inheritdoc />
+        public Task<bool> HasDataAsync(string uid, CancellationToken ct = default) => Task.FromResult(DataUids.Contains(uid));
     }
 }

@@ -167,6 +167,47 @@ public sealed class PuloniaAccountService : IPuloniaAccountService
             .ToArray();
     }
 
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<PuloniaAccountPlanUsage>> ListPlansSpecifyingAccountAsync(string accountId,
+        CancellationToken ct = default)
+    {
+        var plans = await _store.ListPlansWithFailuresAsync(ct).ConfigureAwait(false);
+        return plans.Items.Where(plan => plan.AccountId == accountId)
+            .Select(plan => new PuloniaAccountPlanUsage(plan.Id, plan.Name, plan.Purpose))
+            .OrderBy(plan => plan.Purpose).ThenBy(plan => plan.PlanName, StringComparer.CurrentCulture)
+            .ToArray();
+    }
+
+    /// <inheritdoc />
+    public async Task<PuloniaAccountRemovalImpact> DescribeAccountRemovalAsync(string accountId, CancellationToken ct = default)
+    {
+        var settings = await _store.LoadAccountSettingsAsync(ct).ConfigureAwait(false);
+        if (settings.Accounts.FirstOrDefault(account => account.Id == accountId) is not { } target)
+            return new PuloniaAccountRemovalImpact(0, 0, false, 0, []);
+        // 1. Pulonia 自己的数据：完成记录、首领领奖次数、凭据与不再被引用的图片
+        var completions = (await ListRouteCompletionsAsync(accountId, ct).ConfigureAwait(false)).Count;
+        var bossRewards = await _store.CountBossRewardEntriesAsync(accountId, ct).ConfigureAwait(false);
+        var images = _store.ListRemovableAccountImages(target, settings.Accounts).Count;
+        // 2. 其他模块按 UID 存放的数据：读取失败时不列出，删除时照常尝试
+        var others = new List<string>();
+        if (target.Uid is { } uid)
+        {
+            foreach (var handler in _dataHandlers)
+            {
+                try
+                {
+                    if (await handler.HasDataAsync(uid, ct).ConfigureAwait(false))
+                        others.Add(handler.DataName);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    _logger.LogWarning(ex, "读取账户 {Account} 的{Data}失败", accountId, handler.DataName);
+                }
+            }
+        }
+        return new PuloniaAccountRemovalImpact(completions, bossRewards, target.CredentialReference is not null, images, others);
+    }
+
     /// <summary>
     /// 要删除的账户正被运行（或测试切换）占用时拒绝：删除会同时删除它的进度目录，正在运行的运行还要写入完成记录。
     /// </summary>

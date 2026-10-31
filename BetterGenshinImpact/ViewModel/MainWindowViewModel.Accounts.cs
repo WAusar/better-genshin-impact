@@ -12,7 +12,6 @@ using BetterGenshinImpact.ViewModel.Pages.Pulonia;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
-using Wpf.Ui.Violeta.Controls;
 
 namespace BetterGenshinImpact.ViewModel;
 
@@ -69,6 +68,19 @@ public partial class MainWindowViewModel
 
     /// <summary>是否显示改为读到的 UID 对应账户的建议。</summary>
     public bool HasAccountSuggestion => AccountSuggestionText is not null;
+
+    /// <summary>UID 不一致提示中“改为该账户”按钮的文字，如“把当前账户改为乙”；没有建议时为空。</summary>
+    [ObservableProperty] private string _accountSuggestionButtonText = "";
+
+    /// <summary>是否显示 UID 不一致提示（统筹设计 4.4）；关闭、修改当前账户或下一次比对一致后隐藏。</summary>
+    [ObservableProperty] private bool _isUidMismatchNoticeOpen;
+
+    /// <summary>UID 不一致提示的说明，如“本实例当前账户是甲（UID 尾号 1111），游戏中读到尾号 2222。本次仍按甲记录进度。”</summary>
+    [ObservableProperty] private string _uidMismatchNoticeText = "";
+
+    /// <summary>关闭 UID 不一致提示；标题栏徽标的提示色保留，直到修改当前账户或比对一致。</summary>
+    [RelayCommand]
+    private void DismissUidMismatchNotice() => IsUidMismatchNoticeOpen = false;
 
     /// <summary>订阅账户变化并读取一次；在构造函数末尾调用。</summary>
     private void InitializeAccountBadge()
@@ -218,6 +230,10 @@ public partial class MainWindowViewModel
         AccountSuggestionText = suggested is null || mismatch?.ObservedUid is not { } suggestedUid
             ? null
             : $"游戏中读到尾号 {PuloniaAccountChoiceViewModel.UidTail(suggestedUid)}，改为{suggested.Name}";
+        AccountSuggestionButtonText = suggested is null ? "" : $"把当前账户改为{suggested.Name}";
+        // 不一致已解除（修改了当前账户或比对一致）时，提示随之关闭
+        if (mismatch is null)
+            IsUidMismatchNoticeOpen = false;
     }
 
     /// <summary>
@@ -235,8 +251,9 @@ public partial class MainWindowViewModel
         var account = _accountDirectory.FirstOrDefault(item => item.Id == report.AccountId);
         var name = account?.Name ?? "未知账户";
         var expected = account?.Uid is { } uid ? PuloniaAccountChoiceViewModel.UidTail(uid) : "未知";
-        // 一键改为读到的 UID 对应账户的入口在标题栏账户徽标下拉的顶部，提示本身只说明情况。
-        Toast.Warning($"本实例当前账户是{name}（UID 尾号 {expected}），游戏中读到尾号 {PuloniaAccountChoiceViewModel.UidTail(observed)}。本次仍按{name}记录进度。");
+        // 提示卡片在关闭前一直显示；目录中有读到的 UID 对应的账户时，卡片带“把当前账户改为乙”按钮（统筹设计 4.4）
+        UidMismatchNoticeText = $"本实例当前账户是{name}（UID 尾号 {expected}），游戏中读到尾号 {PuloniaAccountChoiceViewModel.UidTail(observed)}。本次仍按{name}记录进度。";
+        IsUidMismatchNoticeOpen = true;
     }
 
     /// <summary>
@@ -278,10 +295,13 @@ public partial class MainWindowViewModel
     [RelayCommand]
     private void OpenAccountMenu() => IsAccountMenuOpen = true;
 
-    /// <summary>改为 UID 不一致时读到的 UID 对应的账户。</summary>
+    /// <summary>改为 UID 不一致时读到的 UID 对应的账户（标题栏徽标下拉与 UID 不一致提示共用）。</summary>
     [RelayCommand]
     private Task ApplyAccountSuggestionAsync()
-        => _suggestedAccountId is { } accountId ? SelectCurrentAccountAsync(accountId) : Task.CompletedTask;
+    {
+        IsUidMismatchNoticeOpen = false;
+        return _suggestedAccountId is { } accountId ? SelectCurrentAccountAsync(accountId) : Task.CompletedTask;
+    }
 
     /// <summary>跳转到账户页。</summary>
     [RelayCommand]

@@ -202,4 +202,19 @@ public interface IPuloniaAccountService
     /// <param name="ct">取消令牌</param>
     /// <returns>这些实例的实例键</returns>
     Task<IReadOnlyList<string>> ListOtherOnlineInstancesUsingAccountAsync(string accountId, CancellationToken ct = default);
+
+    /// <summary>
+    /// 指定了该账户作为运行账户的计划（普通计划与一条龙配置），按计划名称排序；读不出的计划文件跳过。
+    /// </summary>
+    /// <param name="accountId">账户 ID</param>
+    /// <param name="ct">取消令牌</param>
+    Task<IReadOnlyList<PuloniaAccountPlanUsage>> ListPlansSpecifyingAccountAsync(string accountId, CancellationToken ct = default);
+
+    /// <summary>
+    /// 删除该账户时会一并删除的数据：登录凭据、不再被引用的账户图片、完成记录、首领领奖次数，以及其他模块按 UID 存放的数据。
+    /// 只读取，不删除；账户不在目录中时各项为空。
+    /// </summary>
+    /// <param name="accountId">账户 ID</param>
+    /// <param name="ct">取消令牌</param>
+    Task<PuloniaAccountRemovalImpact> DescribeAccountRemovalAsync(string accountId, CancellationToken ct = default);
 }

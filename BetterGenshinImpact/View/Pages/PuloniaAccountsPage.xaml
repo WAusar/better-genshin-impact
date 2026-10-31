@@ -6,6 +6,8 @@
              xmlns:controls="clr-namespace:BetterGenshinImpact.View.Controls"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:converters="clr-namespace:BetterGenshinImpact.View.Converters"
+             xmlns:models="clr-namespace:BetterGenshinImpact.Pulonia.Models"
              xmlns:pages="clr-namespace:BetterGenshinImpact.View.Pages"
              xmlns:pulonia="clr-namespace:BetterGenshinImpact.ViewModel.Pages.Pulonia"
              xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
@@ -28,6 +30,7 @@
     <!-- 本视图只引用自身资源与 WPF-UI 的动态主题资源，构造时不依赖父视图或应用资源。 -->
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="AccountsBoolVisibility" />
+        <converters:BooleanToVisibilityRevertConverter x:Key="AccountsBoolVisibilityRevert" />
         <!-- ContextMenu 位于独立可视树，通过 Freezable 代理访问页面 ViewModel。 -->
         <behavior:BindingProxy x:Key="AccountsProxy" Data="{Binding}" />
     </UserControl.Resources>
@@ -252,9 +255,35 @@
                                        TextWrapping="Wrap" />
 
                             <TextBlock Margin="0,0,0,6" Text="作为哪些实例的当前账户" />
-                            <TextBlock Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                            <TextBlock Margin="0,0,0,14"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                        Text="{Binding ViewModel.SelectedAccount.InstancesDetailText, Mode=OneWay}"
                                        TextWrapping="Wrap" />
+
+                            <!-- 最近一次运行：所有实例中运行账户为该账户、最晚提交的一次。 -->
+                            <TextBlock Margin="0,0,0,6" Text="最近一次运行" />
+                            <TextBlock Margin="0,0,0,14"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                       Text="{Binding ViewModel.LastRunText, Mode=OneWay}"
+                                       TextWrapping="Wrap" />
+
+                            <!-- 指定了该账户的计划：点击跳转到任务计划页或新一条龙页并选中该计划。 -->
+                            <TextBlock Margin="0,0,0,6" Text="指定了该账户的计划" />
+                            <TextBlock Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                       Text="没有计划指定这个账户。跟随当前账户的计划为各实例的当前账户运行。"
+                                       TextWrapping="Wrap"
+                                       Visibility="{Binding ViewModel.HasPlanUsages, Mode=OneWay, Converter={StaticResource AccountsBoolVisibilityRevert}}" />
+                            <ItemsControl AutomationProperties.Name="指定了该账户的计划" ItemsSource="{Binding ViewModel.PlanUsages, Mode=OneWay}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type models:PuloniaAccountPlanUsage}">
+                                        <ui:HyperlinkButton Padding="0,2"
+                                                            Command="{Binding Data.ViewModel.OpenPlanCommand, Source={StaticResource AccountsProxy}, Mode=OneWay}"
+                                                            CommandParameter="{Binding Mode=OneWay}"
+                                                            Content="{Binding PlanName, Mode=OneWay}"
+                                                            ToolTip="打开这个计划" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>

@@ -136,6 +136,9 @@ public partial class PuloniaOneDragonViewModel : ViewModel, IDropTarget
         // 首领讨伐的累计次数与“查看路线 CD”按统筹设计 5.6 选账户：先确保会话已读取账户目录与本实例当前账户
         await Session.EnsureCooldownAccountsAsync();
         await EnsurePageLoadedAsync();
+        // 账户页等其他页面请求打开的配置：加载完成后选中
+        if (Session.TakeOpenPlanRequest(Configurations) is { } requested)
+            SelectedConfiguration = requested;
         await runTargetsRefresh;
         if (!_isListening || !IsReady) return;
         // 每次进入都重新读取账户目录：账户可能刚在账户页或其他实例中修改

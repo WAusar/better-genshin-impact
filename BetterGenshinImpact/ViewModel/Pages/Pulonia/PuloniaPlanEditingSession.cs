@@ -102,6 +102,29 @@ public partial class PuloniaPlanEditingSession : ObservableObject
     internal IEnumerable<PuloniaTaskPlanDocumentViewModel> AllDocuments => Documents.Concat(OneDragonDocuments);
 
     /// <summary>
+    /// 其他页面（例如账户页概况中的“指定了该账户的计划”）请求打开的计划 ID；任务计划页或新一条龙页进入时取走并选中。
+    /// 会话是单例，请求只保留最后一次。
+    /// </summary>
+    private string? _pendingOpenPlanId;
+
+    /// <summary>记下要打开的计划，调用方随后导航到对应页面。</summary>
+    /// <param name="planId">计划 ID</param>
+    internal void RequestOpenPlan(string planId) => _pendingOpenPlanId = planId;
+
+    /// <summary>
+    /// 取走打开计划的请求：请求的计划在 <paramref name="documents"/> 中时返回它并清除请求，否则保留请求（属于另一个页面）。
+    /// </summary>
+    /// <param name="documents">调用页面显示的计划集合</param>
+    /// <returns>要选中的计划；没有属于本页的请求时为 null</returns>
+    internal PuloniaTaskPlanDocumentViewModel? TakeOpenPlanRequest(IEnumerable<PuloniaTaskPlanDocumentViewModel> documents)
+    {
+        if (_pendingOpenPlanId is not { } planId || documents.FirstOrDefault(document => document.Id == planId) is not { } target)
+            return null;
+        _pendingOpenPlanId = null;
+        return target;
+    }
+
+    /// <summary>
     /// 最近一次加载的结果说明，供首次进入的页面显示。
     /// </summary>
     public string? LoadMessage { get; private set; }

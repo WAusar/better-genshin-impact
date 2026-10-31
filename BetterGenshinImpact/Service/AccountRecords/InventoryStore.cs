@@ -64,7 +64,7 @@ public sealed partial class InventoryStore
         {
             try { acquired = mutex.WaitOne(TimeSpan.FromSeconds(10)); }
             catch (AbandonedMutexException) { acquired = true; }
-            if (!acquired) throw new IOException("账号记录正在被其他操作占用，等待十秒仍未取得访问权限。");
+            if (!acquired) throw new IOException("狛荷屋记录正在被其他操作占用，等待十秒仍未取得访问权限。");
             if (initialize) EnsureSupplementaryDictionary();
             return action();
         }
@@ -770,7 +770,7 @@ public sealed partial class InventoryStore
         if (data.SchemaVersion != 1 || data.Items == null || data.Errors == null || data.Uid == null || data.Uid.Length > 0 && data.Uid != uid ||
             data.Items.Values.Any(records => records == null || records.Any(record => record == null || record.Quantity < 0 || string.IsNullOrEmpty(record.Source))) ||
             data.Errors.Values.Any(error => error == null || error.Incoming == null))
-            throw new InvalidDataException("库存文件的版本、账号或记录结构不符合要求：schemaVersion 须为 1，UID 须与所选账号一致，数量、来源等字段须有效。");
+            throw new InvalidDataException("库存文件的版本、UID 或记录结构不符合要求：schemaVersion 须为 1，UID 须与所选账户一致，数量、来源等字段须有效。");
         data.Uid = uid;
         if (data.Prior == null || data.Prior.Any(string.IsNullOrWhiteSpace))
             throw new InvalidDataException("库存文件的 Prior 置顶列表为 null 或包含空物品名，无法载入。");

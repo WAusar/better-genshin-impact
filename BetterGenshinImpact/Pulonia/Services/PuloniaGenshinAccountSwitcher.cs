@@ -43,21 +43,27 @@ public sealed class PuloniaGenshinAccountSwitcher(PuloniaTaskStore store) : IPul
         // 原默认账号“读到任意 UID 即返回”的分支已删除：只有填写了 UID 的指定账户才会进入账户准备。
         if (!Regex.IsMatch(account.Uid ?? "", "^[0-9]{9,10}$"))
             throw new InvalidOperationException("指定账户需要填写完整 UID，不能按未指定目标切换。");
-        EnsureSupportedRuntime(runtime);
+        // 不能切换的运行环境（云原神等）仍可以只读核验：游戏中已登录目标账户时照常运行（统筹设计 4.4）
+        var unsupportedReason = GetUnsupportedRuntimeReason(runtime);
         using var budget = CancellationTokenSource.CreateLinkedTokenSource(ct);
         budget.CancelAfter(PreparationBudget);
         try
         {
             using var recognition = new PuloniaGenshinAccountRecognition();
-            // 1. 核验当前账户：停在派蒙菜单或可关闭的游戏内界面时先返回主界面，登录界面不按 Esc
+            // 1. 核验当前账户：可以切换的环境停在派蒙菜单或可关闭的游戏内界面时先返回主界面，登录界面不按 Esc；
+            //    不能切换的环境不按键，只截图读取
             TaskControl.Logger.LogInformation("账户准备：正在核验当前登录的账户");
-            await ReturnFromGameMenuAsync(runtime, recognition, budget.Token).ConfigureAwait(false);
+            if (unsupportedReason is null)
+                await ReturnFromGameMenuAsync(runtime, recognition, budget.Token).ConfigureAwait(false);
             var current = await ReadStableUidAsync(runtime, null, budget.Token).ConfigureAwait(false);
             if (current is not null && current == account.Uid)
             {
                 TaskControl.Logger.LogInformation("账户准备：账户已核验");
                 return current;
             }
+            // 2. 需要切换但本实例不能切换：不登出当前账户，运行进入待处理
+            if (unsupportedReason is not null)
+                throw new InvalidOperationException($"游戏中登录的不是“{account.Name}”，本实例不能切换到“{account.Name}”（{unsupportedReason}）。");
             var hasLoginSelection = account.LoginMode switch
             {
                 PuloniaGenshinAccountLoginMode.Image => account.ImagePath is not null,
@@ -70,7 +76,7 @@ public sealed class PuloniaGenshinAccountSwitcher(PuloniaTaskStore store) : IPul
             if (!hasLoginSelection)
                 throw new InvalidOperationException($"游戏中登录的不是“{account.Name}”，且该账户尚未配置图片、列表文字或密码，未登出当前账户。");
             TaskControl.Logger.LogInformation("账户准备：正在切换到账户“{Name}”", account.Name);
-            // 2. 先切换，再进入主界面重新核验 UID；离开主界面前通知调用方切换已经开始
+            // 3. 先切换，再进入主界面重新核验 UID；离开主界面前通知调用方切换已经开始
             switchStarted();
             for (var attempt = 0; attempt < 2; attempt++)
             {
@@ -111,17 +117,29 @@ public sealed class PuloniaGenshinAccountSwitcher(PuloniaTaskStore store) : IPul
             throw new InvalidOperationException("当前 UID 与本次已核验的账户不一致，已停止后续游戏任务。");
     }
 
-    /// <summary>要求当前租约绑定 PC 官服本机窗口，避免把官服模板用于其他登录渠道。</summary>
+    /// <summary>
+    /// 当前租约绑定的运行环境能否自动切换账户：只支持 PC 官服本机窗口与键鼠输入，避免把官服模板用于其他登录渠道。
+    /// </summary>
     /// <param name="runtime">调用方租约持有的运行环境</param>
-    private static void EnsureSupportedRuntime(GameRuntime runtime)
+    /// <returns>不能切换的原因；可以切换时为 null</returns>
+    private static string? GetUnsupportedRuntimeReason(GameRuntime runtime)
     {
         if (InputHub.Backend is not Win32InputBackend)
-            throw new InvalidOperationException("自动切号首版仅支持 PC 官服的键鼠输入。");
+            return "自动切换账户只支持本机 PC 官服窗口，云原神实例不能切换账户";
         User32.GetWindowThreadProcessId(runtime.Window.Handle, out var processId);
         using var process = Process.GetProcessById((int)processId);
         // B 服同为 YuanShen 进程，但登录界面与官服模板不同，会在模板匹配阶段停止而不会误操作，因此不再读取 config.ini 区分渠道。
-        if (!string.Equals(process.ProcessName, "YuanShen", StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("自动切号首版仅支持本机 PC 官服。");
+        return string.Equals(process.ProcessName, "YuanShen", StringComparison.OrdinalIgnoreCase)
+            ? null
+            : "自动切换账户只支持本机 PC 官服";
+    }
+
+    /// <summary>要求当前租约绑定 PC 官服本机窗口，供采集账户图片等必须操作登录界面的功能使用。</summary>
+    /// <param name="runtime">调用方租约持有的运行环境</param>
+    private static void EnsureSupportedRuntime(GameRuntime runtime)
+    {
+        if (GetUnsupportedRuntimeReason(runtime) is { } reason)
+            throw new InvalidOperationException(reason + "。");
     }
 
     /// <summary>在独立的新截图中连续读取两次完整 UID，识别失败不当作 UID 为零。</summary>

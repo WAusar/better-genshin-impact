@@ -64,4 +64,11 @@ public sealed class AccountRecordsAccountDataHandler : IPuloniaAccountDataHandle
         // 与“删除 UID 及全部数据”相同：整个数据目录（库存、事件、快照）一并删除
         await AccountRecordsInteractionGate.Instance.ExecuteManualAsync(() => _store.ClearAsync(uid, true, true));
     }
+
+    /// <inheritdoc />
+    public async Task<bool> HasDataAsync(string uid, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        return await _store.HasUidDataAsync(uid);
+    }
 }

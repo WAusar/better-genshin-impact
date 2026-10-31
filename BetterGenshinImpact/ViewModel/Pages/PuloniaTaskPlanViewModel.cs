@@ -157,6 +157,9 @@ public partial class PuloniaTaskPlanViewModel : ViewModel, IDropTarget
         try
         {
             await InitializeAsync();
+            // 账户页等其他页面请求打开的计划：加载完成后选中
+            if (Session.TakeOpenPlanRequest(Session.Documents) is { } requested)
+                SelectedDocument = requested;
             await runTargetsRefresh;
             ct.ThrowIfCancellationRequested();
             // 每次进入都重新读取账户目录：账户可能刚在账户页或其他实例中修改

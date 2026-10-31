@@ -158,28 +158,43 @@ public sealed partial class PuloniaTaskStore
         var removed = previous.Accounts.Where(account => !savedIds.Contains(account.Id)).ToArray();
         if (removed.Length == 0)
             return;
-        // 2. 目录中仍被引用的图片一律保留
-        var referenced = saved.Accounts.Select(account => TryResolveAccountImagePath(account.ImagePath)).OfType<string>()
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var directory = Path.Combine(RootDirectory, AccountImageDirectoryName);
+        // 2. 逐个账户删除不再被目录引用的图片
         foreach (var account in removed)
         {
-            // 3. 候选：当前引用的图片，加上按命名规则属于该账户的旧图片（账户 ID 已通过格式校验，不含通配符）
-            var candidates = new List<string>();
-            if (TryResolveAccountImagePath(account.ImagePath) is { } current)
-                candidates.Add(current);
-            if (Directory.Exists(directory))
-                candidates.AddRange(Directory.EnumerateFiles(directory, account.Id + "-*.png")
-                    .Where(path => string.Equals(Path.GetExtension(path), ".png", StringComparison.OrdinalIgnoreCase))
-                    .Select(path => TryResolveAccountImagePath(Path.Combine(AccountImageDirectoryName, Path.GetFileName(path))))
-                    .OfType<string>());
-            foreach (var path in candidates.Distinct(StringComparer.OrdinalIgnoreCase).Where(path => !referenced.Contains(path)))
+            foreach (var path in ListRemovableAccountImages(account, saved.Accounts))
             {
                 try { File.Delete(path); }
                 catch (IOException) { }
                 catch (UnauthorizedAccessException) { }
             }
         }
+    }
+
+    /// <summary>
+    /// 删除账户时会一并删除的图片：它当前引用的图片，加上以其账户 ID 为前缀、此前被替换下来的旧图片；
+    /// 仍被 <paramref name="remaining"/> 中其他账户引用的图片不算在内。只读取目录，不删除。
+    /// </summary>
+    /// <param name="account">要删除的账户</param>
+    /// <param name="remaining">删除后仍在目录中的账户</param>
+    /// <returns>图片的完整路径</returns>
+    internal IReadOnlyList<string> ListRemovableAccountImages(PuloniaGenshinAccountProfile account,
+        IEnumerable<PuloniaGenshinAccountProfile> remaining)
+    {
+        // 1. 目录中仍被引用的图片一律保留
+        var referenced = remaining.Where(item => item.Id != account.Id)
+            .Select(item => TryResolveAccountImagePath(item.ImagePath)).OfType<string>()
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        // 2. 候选：当前引用的图片，加上按命名规则属于该账户的旧图片（账户 ID 已通过格式校验，不含通配符）
+        var directory = Path.Combine(RootDirectory, AccountImageDirectoryName);
+        var candidates = new List<string>();
+        if (TryResolveAccountImagePath(account.ImagePath) is { } current && File.Exists(current))
+            candidates.Add(current);
+        if (Directory.Exists(directory))
+            candidates.AddRange(Directory.EnumerateFiles(directory, account.Id + "-*.png")
+                .Where(path => string.Equals(Path.GetExtension(path), ".png", StringComparison.OrdinalIgnoreCase))
+                .Select(path => TryResolveAccountImagePath(Path.Combine(AccountImageDirectoryName, Path.GetFileName(path))))
+                .OfType<string>());
+        return candidates.Distinct(StringComparer.OrdinalIgnoreCase).Where(path => !referenced.Contains(path)).ToArray();
     }
 
     /// <summary>把账户图片的相对路径解析为完整路径；为空或不在账户图片目录内时返回 null，不抛出异常。</summary>
