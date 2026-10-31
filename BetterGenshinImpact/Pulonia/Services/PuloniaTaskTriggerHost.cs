@@ -214,23 +214,8 @@ public sealed class PuloniaTaskTriggerHost(PuloniaTaskStore store, IPuloniaTaskS
     {
         var config = configService?.Get().HotKeyConfig;
         if (config is null) return false;
-        var key = HotKey.FromString(trigger.Hotkey);
-        foreach (var property in config.GetType().GetProperties().Where(property => property.PropertyType == typeof(string)
-            && property.Name.EndsWith("Hotkey", StringComparison.Ordinal)))
-        {
-            if (!Enum.TryParse<HotKeyTypeEnum>(config.GetType().GetProperty(property.Name + "Type")?.GetValue(config) as string, out var type))
-                continue;
-            try
-            {
-                if (HotKeySettingModel.AreConflicting(key, trigger.HotkeyType,
-                    HotKey.FromString(property.GetValue(config) as string ?? ""), type)) return true;
-            }
-            catch (ArgumentException)
-            {
-                // 原设置中的非法键值不是一个可注册热键，不因它阻断其他有效配置。
-            }
-        }
-        return false;
+        // 预检查规则与按键宏共用，见 HotKeySettingModel.ConflictsWithHotKeyConfig。
+        return HotKeySettingModel.ConflictsWithHotKeyConfig(HotKey.FromString(trigger.Hotkey), trigger.HotkeyType, config);
     }
 
     /// <summary>观察热键异步异常，避免 async void 异常穿过系统消息循环。</summary>

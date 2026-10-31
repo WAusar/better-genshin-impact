@@ -61,6 +61,15 @@ public partial class MacroSettingsPageViewModel : ViewModel
         _navigationService.Navigate(typeof(HotKeyPage));
     }
 
+    /// <summary>
+    /// 打开按键宏页面
+    /// </summary>
+    [RelayCommand]
+    public void OnGoToKeyMacroPage()
+    {
+        _navigationService.Navigate(typeof(KeyMacroPage));
+    }
+
     [RelayCommand]
     public void OnEditAvatarMacro()
     {

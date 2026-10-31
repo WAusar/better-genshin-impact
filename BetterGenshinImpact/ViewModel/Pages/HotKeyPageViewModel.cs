@@ -253,6 +253,16 @@ public partial class HotKeyPageViewModel : ObservableObject, IViewModel
         });
     }
 
+    /// <summary>
+    /// 快捷键与原神键位冲突的说明行，没有冲突时返回空列表。按键宏编辑页与快捷键页共用这条规则
+    /// </summary>
+    /// <param name="hotKey">快捷键</param>
+    /// <param name="keyBindings">原神键位配置</param>
+    internal static List<string> GetGameKeyBindingConflictLines(HotKey hotKey, KeyBindingsConfig keyBindings)
+    {
+        return TryConvertToGameKeyId(hotKey, out var hotKeyId) ? GetGameKeyBindingConflictLines(keyBindings, hotKeyId) : [];
+    }
+
     private static bool TryConvertToGameKeyId(HotKey hotKey, out KeyId keyId)
     {
         keyId = KeyId.Unknown;
@@ -279,6 +289,11 @@ public partial class HotKeyPageViewModel : ObservableObject, IViewModel
 
     private List<string> GetGameKeyBindingConflictLines(KeyId hotKeyId)
     {
+        return GetGameKeyBindingConflictLines(Config.KeyBindingsConfig, hotKeyId);
+    }
+
+    private static List<string> GetGameKeyBindingConflictLines(KeyBindingsConfig keyBindings, KeyId hotKeyId)
+    {
         var lines = new List<string>();
         foreach (var pi in typeof(KeyBindingsConfig).GetProperties(BindingFlags.Public | BindingFlags.Instance))
         {
@@ -287,7 +302,7 @@ public partial class HotKeyPageViewModel : ObservableObject, IViewModel
                 continue;
             }
 
-            if (pi.GetValue(Config.KeyBindingsConfig) is KeyId gameKeyId && gameKeyId == hotKeyId)
+            if (pi.GetValue(keyBindings) is KeyId gameKeyId && gameKeyId == hotKeyId)
             {
                 lines.Add($"- {GetGameKeyBindingActionName(pi.Name)}（{gameKeyId.ToName()}）");
             }

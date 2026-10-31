@@ -21,6 +21,34 @@
                       FontTypography="BodyStrong"
                       Text="{i18n:T 辅助操控设置}" />
 
+        <!--  按键宏入口：不识图的键鼠宏，编辑在单独的页面  -->
+        <ui:CardControl Margin="0,0,0,12" Icon="{ui:SymbolIcon KeyboardLayoutFloat24}">
+            <ui:CardControl.Header>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <ui:TextBlock Grid.Row="0"
+                                  FontTypography="Body"
+                                  Text="{i18n:T 按键宏（不识图）}"
+                                  TextWrapping="Wrap" />
+                    <ui:TextBlock Grid.Row="1"
+                                  Foreground="{ui:ThemeResource TextFillColorTertiaryBrush}"
+                                  Text="{i18n:T 每个宏单独绑定快捷键，按下后直接执行键鼠序列，不识别游戏画面。支持单次、按住循环、切换循环}"
+                                  TextWrapping="Wrap" />
+                </Grid>
+            </ui:CardControl.Header>
+            <StackPanel Orientation="Horizontal">
+                <ui:ToggleSwitch Margin="0,0,16,0"
+                                 VerticalAlignment="Center"
+                                 IsChecked="{Binding Config.KeyMacroConfig.Enabled, Mode=TwoWay}" />
+                <ui:Button Margin="0,0,24,0"
+                           Command="{Binding GoToKeyMacroPageCommand}"
+                           Content="{i18n:T 管理按键宏}" />
+            </StackPanel>
+        </ui:CardControl>
+
         <!--  一键战斗宏  -->
         <ui:CardExpander Margin="0,0,0,12"
                          ContentPadding="0"

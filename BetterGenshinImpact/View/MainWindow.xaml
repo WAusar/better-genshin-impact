@@ -193,6 +193,15 @@
                     </ui:NavigationViewItem.Icon>
                 </ui:NavigationViewItem>
 
+                <!--  按键宏：不识图的键鼠宏，见 Docs/design/key-macro.md  -->
+                <ui:NavigationViewItem Content="{i18n:T 按键宏}"
+                                       NavigationCacheMode="Enabled"
+                                       TargetPageType="{x:Type pages:KeyMacroPage}">
+                    <ui:NavigationViewItem.Icon>
+                        <ui:SymbolIcon Symbol="KeyboardLayoutFloat24" />
+                    </ui:NavigationViewItem.Icon>
+                </ui:NavigationViewItem>
+
                 <ui:NavigationViewItem Content="{i18n:T 自动演奏}"
                                        NavigationCacheMode="Enabled"
                                        TargetPageType="{x:Type pages:MusicPage}">

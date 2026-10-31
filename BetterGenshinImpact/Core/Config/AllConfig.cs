@@ -234,6 +234,11 @@ public partial class AllConfig : ObservableObject
     /// </summary>
     public MacroConfig MacroConfig { get; set; } = new();
 
+    /// <summary>
+    ///     按键宏全局设置（宏内容保存在 User/BgiMacro）
+    /// </summary>
+    public KeyMacroConfig KeyMacroConfig { get; set; } = new();
+
     public RecordConfig RecordConfig { get; set; } = new();
 
     /// <summary>

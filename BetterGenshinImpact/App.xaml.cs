@@ -47,6 +47,7 @@ using BetterGenshinImpact.Service.Guide;
 using BetterGenshinImpact.Service.Instance;
 using BetterGenshinImpact.Service.I18n;
 using BetterGenshinImpact.Service.Interface;
+using BetterGenshinImpact.Service.KeyMacro;
 using BetterGenshinImpact.Service.Notification;
 using BetterGenshinImpact.Service.Notifier;
 using BetterGenshinImpact.View;
@@ -286,6 +287,7 @@ public partial class App : Application
                 services.AddView<ScriptControlPage, ScriptControlViewModel>();
                 services.AddView<TriggerSettingsPage, TriggerSettingsPageViewModel>();
                 services.AddView<MacroSettingsPage, MacroSettingsPageViewModel>();
+                services.AddView<KeyMacroPage, KeyMacroPageViewModel>();
                 services.AddView<CommonSettingsPage, CommonSettingsPageViewModel>();
                 services.AddView<TaskSettingsPage, TaskSettingsPageViewModel>();
                 services.AddView<HotKeyPage, HotKeyPageViewModel>();
@@ -378,6 +380,10 @@ public partial class App : Application
                 services.AddSingleton<Func<CloudWebHostWindow>>(sp => () => sp.GetRequiredService<CloudWebHostWindow>());
                 services.AddSingleton<GameRuntimeService>();
                 services.AddSingleton<BetterGenshinImpact.Core.Recorder.KeyMouseRecordService>();
+                // 按键宏：宏目录存储与热键宿主，宿主随应用启动注册热键，见 Docs/design/key-macro.md
+                services.AddSingleton<KeyMacroStore>();
+                services.AddSingleton<KeyMacroHotkeyHost>();
+                services.AddHostedService(sp => sp.GetRequiredService<KeyMacroHotkeyHost>());
                 // 云原神网页版实例：实例名存储与启动器（Primary 首页的管理窗口使用）
                 services.AddSingleton<WebViewInstanceStore>();
                 services.AddSingleton<WebViewInstanceLauncher>();
