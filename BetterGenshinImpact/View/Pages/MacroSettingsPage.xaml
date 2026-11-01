@@ -130,12 +130,20 @@
                             <Run Text="{i18n:T 点击查看说明}" />
                         </Hyperlink>
                     </ui:TextBlock>
-                    <ui:Button Grid.Row="0"
-                               Grid.RowSpan="2"
-                               Grid.Column="1"
-                               Margin="0,0,36,0"
-                               Command="{Binding EditAvatarMacroCommand}"
-                               Content="{i18n:T 前往设置}" />
+                    <StackPanel Grid.Row="0"
+                                Grid.RowSpan="2"
+                                Grid.Column="1"
+                                Margin="0,0,36,0"
+                                VerticalAlignment="Center"
+                                Orientation="Horizontal">
+                        <!--  高级：直接编辑 JSON 源文件  -->
+                        <ui:Button Margin="0,0,8,0"
+                                   Appearance="Transparent"
+                                   Command="{Binding EditAvatarMacroJsonCommand}"
+                                   Content="{i18n:T 编辑 JSON}" />
+                        <ui:Button Command="{Binding EditAvatarMacroCommand}"
+                                   Content="{i18n:T 前往设置}" />
+                    </StackPanel>
                 </Grid>
                 <Grid Margin="16">
                     <Grid.RowDefinitions>
@@ -178,7 +186,7 @@
                                   TextWrapping="Wrap" />
                     <ui:TextBlock Grid.Row="1"
                                   Foreground="{ui:ThemeResource TextFillColorTertiaryBrush}"
-                                  Text="{i18n:T 上方宏配置支持为每个角色单独设置宏编号。在角色宏配置中设置 macroPriority 字段（1-5），设置为0则使用上面的默认战斗宏编号。}"
+                                  Text="{i18n:T 在宏配置中可为每个角色单独选择使用的宏（1-5），选择默认则使用上面的默认战斗宏编号。}"
                                   TextWrapping="Wrap" />
                 </Grid>
             </StackPanel>
